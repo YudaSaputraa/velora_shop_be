@@ -84,43 +84,69 @@ router.post(
   }
 );
 
-router.get("/get-product", async (req, res) => {
+router.get("/get-products", async (req, res) => {
   try {
-    const data = await client.query(`
-      SELECT product.*, 
+    let { search = "", page = 1, limit = 14, categoryId } = req.query;
+    limit = parseInt(limit);
+    page = parseInt(page);
+    const offset = (page - 1) * limit;
+
+    let query = `
+    SELECT product.*, 
       ROUND(AVG(DISTINCT review.rating), 1) AS rating,
-      COALESCE(json_agg(DISTINCT jsonb_build_object('id', image.id, 'product_id',image.product_id, 'link', image.link))
-      FILTER(WHERE image.id IS NOT NULL), '[]') AS images,
-      COALESCE(json_agg(DISTINCT jsonb_build_object('user', users.name, 'rating', review.rating, 'comment',  review.comment))
-      FILTER(WHERE review.id is NOT NULL), '[]') AS reviews
-      FROM product
-      LEFT JOIN image ON product.id = image.product_id
-      LEFT JOIN review ON product.id = review.product_id
-      LEFT JOIN users ON review.user_id = users.id
-      GROUP BY product.id
-      ORDER BY product.id ASC`);
+      COALESCE(json_agg(DISTINCT jsonb_build_object(
+        'id', image.id, 
+        'product_id', image.product_id, 
+        'link', image.link
+      )) FILTER(WHERE image.id IS NOT NULL), '[]') AS images,
+      COALESCE(json_agg(DISTINCT jsonb_build_object(
+        'user', users.name, 
+        'rating', review.rating, 
+        'comment', review.comment
+      )) FILTER(WHERE review.id IS NOT NULL), '[]') AS reviews
+    FROM product
+    LEFT JOIN image ON product.id = image.product_id
+    LEFT JOIN review ON product.id = review.product_id
+    LEFT JOIN users ON review.user_id = users.id
+    WHERE product.name ILIKE $1
+  `;
+
+    let countQuery = `SELECT COUNT(*) AS total FROM product WHERE name ILIKE $1`;
+    let queryParams = [`%${search}%`];
+
+    if (categoryId) {
+      queryParams.push(categoryId);
+      query += ` AND product.category_id = $${queryParams.length}`;
+      countQuery += ` AND category_id = $${queryParams.length}`;
+    }
+
+    // sekarang baru tambahin limit & offset
+    queryParams.push(limit);
+    queryParams.push(offset);
+
+    query += ` GROUP BY product.id 
+             ORDER BY product.id ASC 
+             LIMIT $${queryParams.length - 1} 
+             OFFSET $${queryParams.length}`;
+
+    const data = await client.query(query, queryParams);
+
+    const countData = await client.query(
+      countQuery,
+      queryParams.slice(0, queryParams.length - 2) // buang limit & offset
+    );
+
+    const totalProducts = parseInt(countData.rows[0].total);
+    const totalPages = Math.ceil(totalProducts / limit);
 
     res.status(200).json({
       status: true,
       message: "success get all product data",
-      data: data.rows,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      status: false,
-      message: error.message,
-    });
-  }
-});
-router.delete("/delete-product/:id", authorize("admin"), async (req, res) => {
-  try {
-    const { id } = req.params;
-    await client.query(`DELETE FROM product WHERE id = $1`, [id]);
-
-    res.status(200).json({
-      status: true,
-      message: "success delete product data",
+      page,
+      limit,
+      totalProducts,
+      totalPages,
+      data: data.rows, // ambil rows aja biar bersih
     });
   } catch (error) {
     console.log(error);

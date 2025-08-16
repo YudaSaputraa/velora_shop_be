@@ -36,7 +36,7 @@ router.post("/add-category", authorize("admin"), async (req, res) => {
   }
 });
 
-router.get("/get-all", async (req, res) => {
+router.get("/get-categories", async (req, res) => {
   try {
     const data = await client.query(`SELECT * FROM category`);
     const result = data.rows;

@@ -21,6 +21,7 @@ app.use(
     origin: [
       process.env.DOMAIN_1,
       process.env.DOMAIN_2,
+      process.env.DOMAIN_FR,
       process.env.DOMAIN_3,
       process.env.DOMAIN_4,
       process.env.DOMAIN_5,
