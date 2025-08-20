@@ -119,8 +119,6 @@ router.get("/get-products", async (req, res) => {
       query += ` AND product.category_id = $${queryParams.length}`;
       countQuery += ` AND category_id = $${queryParams.length}`;
     }
-
-    // sekarang baru tambahin limit & offset
     queryParams.push(limit);
     queryParams.push(offset);
 
@@ -133,7 +131,7 @@ router.get("/get-products", async (req, res) => {
 
     const countData = await client.query(
       countQuery,
-      queryParams.slice(0, queryParams.length - 2) // buang limit & offset
+      queryParams.slice(0, queryParams.length - 2)
     );
 
     const totalProducts = parseInt(countData.rows[0].total);
@@ -146,7 +144,56 @@ router.get("/get-products", async (req, res) => {
       limit,
       totalProducts,
       totalPages,
-      data: data.rows, // ambil rows aja biar bersih
+      data: data.rows,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+});
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = await client.query(
+      `
+    SELECT product.*, 
+      ROUND(AVG(DISTINCT review.rating), 1) AS rating,
+      COALESCE(json_agg(DISTINCT jsonb_build_object(
+        'id', image.id, 
+        'product_id', image.product_id, 
+        'link', image.link
+      )) FILTER(WHERE image.id IS NOT NULL), '[]') AS images,
+      COALESCE(json_agg(DISTINCT jsonb_build_object(
+        'user', users.name, 
+        'rating', review.rating, 
+        'comment', review.comment
+      )) FILTER(WHERE review.id IS NOT NULL), '[]') AS reviews
+    FROM product
+    LEFT JOIN image ON product.id = image.product_id
+    LEFT JOIN review ON product.id = review.product_id
+    LEFT JOIN users ON review.user_id = users.id
+    WHERE product.id = $1
+    GROUP BY product.id
+  `,
+      [id]
+    );
+
+    if (data.rowCount === 0) {
+      res.status(404).json({
+        status: true,
+        message: "Product not found!",
+      });
+    }
+
+    const product = data.rows[0];
+
+    res.status(200).json({
+      status: true,
+      message: "success get detail product",
+      data: product,
     });
   } catch (error) {
     console.log(error);

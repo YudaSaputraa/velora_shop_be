@@ -78,7 +78,7 @@ router.post("/signin", async (req, res) => {
         return res.status(200).json({
           status: true,
           message: "success sign in",
-          token: token,
+          data: user,
         });
       }
 
@@ -98,9 +98,24 @@ router.post("/signin", async (req, res) => {
 
 router.get("/load-user", authorize("user", "admin"), async (req, res) => {
   try {
-    const data = await client.query(`SELECT * FROM users WHERE id=$1`, [
-      req.user.id,
-    ]);
+    const data = await client.query(
+      `SELECT  users.id, users.name, users.email, users.level, users.phone,
+      jsonb_build_object(
+      'id', address.id,
+      'province_id', address.province_id,
+      'province', address.province,
+      'city_id', address.city_id,
+      'city', address.city,
+      'district_id', address.district_id,
+      'district', address.district,
+      'village_id', address.village_id,
+      'village', address.village,
+      'detail', address.detail) AS address
+      FROM users
+      LEFT JOIN address ON users.id = address.user_id
+      WHERE users.id=$1`,
+      [req.user.id]
+    );
     const user = data.rows[0];
     res.status(200).json({
       status: true,
@@ -141,6 +156,55 @@ router.get("/delete-user/:id", authorize("admin"), async (req, res) => {
     res.status(200).json({
       status: true,
       message: "success delete user",
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+});
+
+router.put("/update-profile", authorize("user"), async (req, res) => {
+  try {
+    const { name, email, phone, oldPassword, newPassword } = req.body;
+
+    await client.query(
+      `UPDATE users SET name=$1, email=$2, phone=$3 WHERE id=$4`,
+      [name, email, phone, req.user.id]
+    );
+    if (oldPassword && newPassword) {
+      const result = await client.query(
+        `SELECT password FROM users WHERE id=$1`,
+        [req.user.id]
+      );
+      if (result.rowCount === 0) {
+        res.status(404).json({
+          status: false,
+          message: "User not found!",
+        });
+      }
+      const user = result.rows[0];
+      const isPasswordMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isPasswordMatch) {
+        return res.status(400).json({
+          status: false,
+          message: "Old password you entered is incorrect.",
+        });
+      }
+      const hashedPassword = await bcrypt.hash(
+        newPassword,
+        parseInt(process.env.SALT_ROUNDS)
+      );
+      await client.query(`UPDATE users SET password=$1 WHERE id=$2`, [
+        hashedPassword,
+        req.user.id,
+      ]);
+    }
+    res.status(200).json({
+      status: true,
+      message: "Data updated successfully",
     });
   } catch (error) {
     console.log(error);
