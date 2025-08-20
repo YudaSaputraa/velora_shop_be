@@ -13,8 +13,9 @@ router.get("/get-provinces", authorize("user"), async (req, res) => {
     );
 
     const data = await response.json();
+    const sorted = data.value.sort((a, b) => a.name.localeCompare(b.name));
 
-    res.status(200).json(data.value);
+    res.status(200).json(sorted);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Internal Server Error" });
