@@ -140,8 +140,6 @@ router.get("/get-products", async (req, res) => {
     res.status(200).json({
       status: true,
       message: "success get all product data",
-      page,
-      limit,
       totalProducts,
       totalPages,
       data: data.rows,

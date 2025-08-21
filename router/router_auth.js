@@ -74,7 +74,11 @@ router.post("/signin", async (req, res) => {
           process.env.JWT_PRIVATE_KEY,
           { expiresIn: "5d" }
         );
-        res.cookie("token", token, { httpOnly: true });
+        res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.ENV === "production",
+          maxAge: 5 * 24 * 60 * 60 * 1000,
+        });
         return res.status(200).json({
           status: true,
           message: "success sign in",

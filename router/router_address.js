@@ -93,7 +93,7 @@ router.post("/add-address", authorize("user"), async (req, res) => {
     district_id = $5,
     district = $6,
     village_id = $7,
-    village = $8
+    village = $8,
     detail = $9
    WHERE id = $10`,
         [
