@@ -79,6 +79,12 @@ router.post("/signin", async (req, res) => {
           secure: process.env.ENV === "production",
           maxAge: 5 * 24 * 60 * 60 * 1000,
         });
+        res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.ENV === "production",
+          maxAge: 5 * 24 * 60 * 60 * 1000,
+        });
+
         return res.status(200).json({
           status: true,
           message: "success sign in",
@@ -137,13 +143,51 @@ router.get("/load-user", authorize("user", "admin"), async (req, res) => {
 
 router.get("/get-users", authorize("admin"), async (req, res) => {
   try {
-    const data = await client.query(`SELECT * FROM users`);
-    const user = data.rows;
-    res.status(200).json({
-      status: true,
-      message: "success get all users",
-      data: user,
-    });
+    let { search = "", page, limit } = req.query;
+    limit = parseInt(limit);
+    page = parseInt(page);
+    const offset = (page - 1) * limit;
+
+    if (!page && !limit) {
+      const data = await client.query(
+        `SELECT * FROM users WHERE level='user' ORDER BY LOWER(name) ASC`
+      );
+      const users = data.rows;
+      res.status(200).json({
+        status: true,
+        message: "success get all users",
+        data: users,
+      });
+    } else {
+      let query = `SELECT * FROM users WHERE name ILIKE $1 AND level='user'`;
+      let countQuery = `SELECT COUNT(*) AS total from users WHERE name ILIKE $1 AND level='user'`;
+      let queryParams = [`%${search}%`];
+
+      queryParams.push(limit);
+      queryParams.push(offset);
+
+      query += ` GROUP BY id ORDER BY LOWER(name) ASC LIMIT $${
+        queryParams.length - 1
+      } OFFSET $${queryParams.length}`;
+
+      const data = await client.query(query, queryParams);
+
+      const countData = await client.query(
+        countQuery,
+        queryParams.slice(0, queryParams.length - 2)
+      );
+      const totalUsers = parseInt(countData.rows[0].total);
+      const totalPages = Math.ceil(totalUsers / limit);
+      res.status(200).json({
+        status: true,
+        message: "success",
+        limit,
+        page,
+        totalUsers,
+        totalPages,
+        data: data.rows,
+      });
+    }
   } catch (error) {
     console.log(error);
     res.status(500).json({
@@ -153,7 +197,7 @@ router.get("/get-users", authorize("admin"), async (req, res) => {
   }
 });
 
-router.get("/delete-user/:id", authorize("admin"), async (req, res) => {
+router.delete("/delete-user/:id", authorize("admin"), async (req, res) => {
   try {
     const { id } = req.params;
     await client.query(`DELETE FROM users WHERE id=$1`, [id]);

@@ -1,40 +1,77 @@
 import express from "express";
 import { client } from "../config/connection.js";
 import { authorize } from "../middleware/Authorize.js";
+import multer from "multer";
+import path from "path";
+import { v4 as uuidv4 } from "uuid";
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./assets/icons");
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = uuidv4();
+    const ext = path.extname(file.originalname);
+    const name = path.basename(file.originalname, ext).replace(/\s+/g, "-");
+
+    cb(null, `${name}-${uniqueSuffix}${ext}`);
+  },
+});
+
+const upload = multer({ storage: storage });
 
 const router = express.Router();
 
-router.post("/add-category", authorize("admin"), async (req, res) => {
-  try {
-    const { name, id } = req.body;
-    if (id) {
-      await client.query(
-        `UPDATE category SET name = $1 WHERE id= $2 RETURNING *`,
-        [name, id]
-      );
+router.post(
+  "/add-category",
+  authorize("admin"),
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const { name, id } = req.body;
+      let image = null;
+      if (req.file) {
+        image = `${process.env.URL}/assets/icons/${req.file.filename}`;
+      }
+
+      if (id) {
+        if (name && image) {
+          await client.query(
+            `UPDATE category SET name = $1, image = $2 WHERE id = $3 RETURNING *`,
+            [name, image, id]
+          );
+        } else if (name) {
+          await client.query(
+            `UPDATE category SET name = $1 WHERE id = $2 RETURNING *`,
+            [name, id]
+          );
+        } else if (image) {
+          await client.query(
+            `UPDATE category SET image = $1 WHERE id = $2 RETURNING *`,
+            [image, id]
+          );
+        }
+      } else {
+        if (name && image) {
+          await client.query(
+            `INSERT INTO category (name, image) VALUES ($1, $2)`,
+            [name, image]
+          );
+        } else {
+          await client.query(`INSERT INTO category (name) VALUES ($1)`, [name]);
+        }
+      }
 
       res.status(200).json({
         status: true,
-        message: "Category data updated",
+        message: id ? "Success update category" : "Success add category",
       });
-    } else {
-      const data = await client.query(
-        `INSERT INTO category (name) VALUES ($1)`,
-        [name]
-      );
-      const result = data.rows[0];
-
-      res.status(200).json({
-        status: true,
-        message: "Add category success",
-        data: result,
-      });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: error.message });
     }
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: error.message });
   }
-});
+);
 
 router.get("/get-categories", async (req, res) => {
   try {
