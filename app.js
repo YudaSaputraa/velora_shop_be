@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -10,6 +11,7 @@ import routerUserReview from "./router/router_user_review.js";
 import routerOrder from "./router/router_order.js";
 import routerCart from "./router/router_cart.js";
 import path from "path";
+import { connectToDb } from "./config/connection.js";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,5 +46,16 @@ app.use("/address", routerAddress);
 app.use("/review", routerUserReview);
 app.use("/order", routerOrder);
 app.use("/cart", routerCart);
+
+if (process.env.NODE_ENV !== "vercel") {
+  app.listen(process.env.PORT || 4000, async () => {
+    try {
+      await connectToDb();
+      console.log(`🚀 Server is running on port ${process.env.PORT}`);
+    } catch (error) {
+      console.log(error);
+    }
+  });
+}
 
 export default app;
