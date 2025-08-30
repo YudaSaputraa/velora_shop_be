@@ -20,14 +20,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(
   cors({
-    origin: [
-      process.env.DOMAIN_1,
-      process.env.DOMAIN_2,
-      process.env.DOMAIN_FR,
-      process.env.DOMAIN_3,
-      process.env.DOMAIN_4,
-      process.env.DOMAIN_5,
-    ],
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -46,6 +39,9 @@ app.use("/address", routerAddress);
 app.use("/review", routerUserReview);
 app.use("/order", routerOrder);
 app.use("/cart", routerCart);
+app.get("/", (req, res) => {
+  res.send("Server is active");
+});
 
 if (process.env.NODE_ENV !== "vercel") {
   app.listen(process.env.PORT || 4000, async () => {
