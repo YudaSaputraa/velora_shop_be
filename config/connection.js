@@ -6,9 +6,8 @@ const client = new Client({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
   database: process.env.DB_NAME,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl:
+    process.env.SSL_MODE === "require" ? { rejectUnauthorized: false } : false,
 });
 
 const connectToDb = async () => {
