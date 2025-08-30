@@ -92,7 +92,7 @@ router.get("/get-products", async (req, res) => {
     const offset = (page - 1) * limit;
 
     let query = `
-    SELECT product.*, 
+    SELECT product.*,  category.name AS category_name,
       ROUND(AVG(DISTINCT review.rating), 1) AS rating,
       COALESCE(json_agg(DISTINCT jsonb_build_object(
         'id', image.id, 
@@ -105,6 +105,7 @@ router.get("/get-products", async (req, res) => {
         'comment', review.comment
       )) FILTER(WHERE review.id IS NOT NULL), '[]') AS reviews
     FROM product
+     LEFT JOIN category  ON category.id = product.category_id
     LEFT JOIN image ON product.id = image.product_id
     LEFT JOIN review ON product.id = review.product_id
     LEFT JOIN users ON review.user_id = users.id
@@ -122,7 +123,7 @@ router.get("/get-products", async (req, res) => {
     queryParams.push(limit);
     queryParams.push(offset);
 
-    query += ` GROUP BY product.id 
+    query += ` GROUP BY product.id, category.name
              ORDER BY product.id ASC 
              LIMIT $${queryParams.length - 1} 
              OFFSET $${queryParams.length}`;
@@ -140,8 +141,6 @@ router.get("/get-products", async (req, res) => {
     res.status(200).json({
       status: true,
       message: "success get all product data",
-      page,
-      limit,
       totalProducts,
       totalPages,
       data: data.rows,
@@ -159,7 +158,7 @@ router.get("/:id", async (req, res) => {
     const { id } = req.params;
     const data = await client.query(
       `
-    SELECT product.*, 
+    SELECT product.*, category.name AS category_name,
       ROUND(AVG(DISTINCT review.rating), 1) AS rating,
       COALESCE(json_agg(DISTINCT jsonb_build_object(
         'id', image.id, 
@@ -172,11 +171,12 @@ router.get("/:id", async (req, res) => {
         'comment', review.comment
       )) FILTER(WHERE review.id IS NOT NULL), '[]') AS reviews
     FROM product
+    LEFT JOIN category  ON category.id = product.category_id
     LEFT JOIN image ON product.id = image.product_id
     LEFT JOIN review ON product.id = review.product_id
     LEFT JOIN users ON review.user_id = users.id
     WHERE product.id = $1
-    GROUP BY product.id
+    GROUP BY product.id, category.name
   `,
       [id]
     );
@@ -218,6 +218,21 @@ router.delete("/delete-image/:id", authorize("admin"), async (req, res) => {
       status: false,
       message: error.message,
     });
+  }
+});
+
+router.delete("/delete-product/:id", authorize("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await client.query(`DELETE FROM product WHERE id=$1`, [id]);
+    res.status(200).json({
+      status: true,
+      message: "delete success",
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
   }
 });
 
