@@ -107,14 +107,13 @@ router.get("/load-user", authorize("user", "admin"), async (req, res) => {
       `SELECT  users.id, users.name, users.email, users.level, users.phone,
       jsonb_build_object(
       'id', address.id,
-      'province_id', address.province_id,
-      'province', address.province,
-      'city_id', address.city_id,
-      'city', address.city,
-      'district_id', address.district_id,
-      'district', address.district,
-      'village_id', address.village_id,
-      'village', address.village,
+      'address_id', address.address_id,
+      'label', address.label,
+      'province_name', address.province_name,
+      'city_name', address.city_name,
+      'distric_name', address.district_name,
+      'subdistric_name', address.subdistrict_name,
+      'zip_code', address.zip_code,
       'detail', address.detail) AS address
       FROM users
       LEFT JOIN address ON users.id = address.user_id
@@ -254,6 +253,28 @@ router.put("/update-profile", authorize("user"), async (req, res) => {
     res.status(500).json({
       status: false,
       message: error.message,
+    });
+  }
+});
+
+router.post("/logout", (req, res) => {
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      expires: new Date(0),
+      secure: process.env.ENV === "production",
+      sameSite: "strict",
+    });
+
+    return res.status(200).json({
+      status: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Failed to log out",
     });
   }
 });

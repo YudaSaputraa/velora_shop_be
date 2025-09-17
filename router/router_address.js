@@ -6,6 +6,68 @@ import { authorize } from "../middleware/Authorize.js";
 const router = express.Router();
 const api_key = process.env.BINDER_BYTE_API_KEY;
 
+router.get(
+  "/get-cities/:city",
+  authorize("admin", "user"),
+  async (req, res) => {
+    try {
+      const options = {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          key: process.env.RAJAONGKIR_SHIPPING_COST_API_KEY,
+        },
+      };
+      const response = await fetch(
+        `https://rajaongkir.komerce.id/api/v1/destination/domestic-destination?search=${req.params.city}&limit=100000`,
+        options
+      );
+      const data = await response.json();
+      const sorted = data.data.sort((a, b) =>
+        a.province_name.localeCompare(b.name)
+      );
+
+      res.status(200).json(sorted);
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
+
+router.get("/cost", authorize("user"), async (req, res) => {
+  try {
+    const { courier, origin = "8112", destination, weight } = req.query;
+
+    const formData = new URLSearchParams();
+    formData.append("courier", courier);
+    formData.append("origin", origin);
+    formData.append("destination", destination);
+    formData.append("weight", weight);
+
+    const options = {
+      method: "POST",
+      headers: {
+        accept: "application/x-www-form-urlencoded",
+        key: process.env.RAJAONGKIR_SHIPPING_COST_API_KEY,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: formData.toString(),
+    };
+
+    const response = await fetch(
+      `https://rajaongkir.komerce.id/api/v1/calculate/domestic-cost`,
+      options
+    );
+    const data = await response.json();
+
+    res.status(200).json(data.data);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 router.get("/get-provinces", authorize("user"), async (req, res) => {
   try {
     const response = await fetch(
@@ -72,39 +134,37 @@ router.post("/add-address", authorize("user"), async (req, res) => {
   try {
     const {
       id,
-      province_id,
-      province,
-      city_id,
-      city,
-      district_id,
-      district,
-      village_id,
-      village,
+      address_id,
+      label,
+      province_name,
+      city_name,
+      district_name,
+      subdistrict_name,
+      zip_code,
       detail,
     } = req.body;
     const user_id = req.user.id;
+
     if (id) {
       await client.query(
         `UPDATE address SET
-    province_id = $1,
-    province = $2,
-    city_id = $3,
-    city = $4,
-    district_id = $5,
-    district = $6,
-    village_id = $7,
-    village = $8,
-    detail = $9
-   WHERE id = $10`,
+          address_id = $1,
+          label = $2,
+          province_name = $3,
+          city_name = $4,
+          district_name = $5,
+          subdistrict_name = $6,
+          zip_code = $7,
+          detail = $8
+        WHERE id = $9`,
         [
-          province_id,
-          province,
-          city_id,
-          city,
-          district_id,
-          district,
-          village_id,
-          village,
+          address_id,
+          label,
+          province_name,
+          city_name,
+          district_name,
+          subdistrict_name,
+          zip_code,
           detail,
           id,
         ]
@@ -112,27 +172,25 @@ router.post("/add-address", authorize("user"), async (req, res) => {
     } else {
       await client.query(
         `INSERT INTO address (
-      user_id,
-      province_id,
-      province,
-      city_id,
-      city,
-      district_id,
-      district,
-      village_id,
-      village,
-      detail
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          user_id,
+          address_id,
+          label,
+          province_name,
+          city_name,
+          district_name,
+          subdistrict_name,
+          zip_code,
+          detail
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
         [
           user_id,
-          province_id,
-          province,
-          city_id,
-          city,
-          district_id,
-          district,
-          village_id,
-          village,
+          address_id,
+          label,
+          province_name,
+          city_name,
+          district_name,
+          subdistrict_name,
+          zip_code,
           detail,
         ]
       );
@@ -143,8 +201,11 @@ router.post("/add-address", authorize("user"), async (req, res) => {
       message: id ? "success update address" : "success added the address",
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error(error);
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
   }
 });
 
