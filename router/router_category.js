@@ -22,6 +22,41 @@ const upload = multer({ storage: storage });
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /category/add-category:
+ *   post:
+ *     summary: Add or update a category
+ *     description:
+ *       If the `id` field is provided, the category will be updated.
+ *       If the `id` field is omitted, a new category will be created.
+ *     tags: [Category]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: "Category ID (optional, if provided the record will be updated)"
+ *               name:
+ *                 type: string
+ *                 description: "Category name"
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: "Category image file (optional)"
+ *     responses:
+ *       200:
+ *         description: Category successfully added or updated
+ *       500:
+ *         description: Internal server error
+ */
+
 router.post(
   "/add-category",
   authorize("admin"),
@@ -72,6 +107,19 @@ router.post(
     }
   }
 );
+/**
+ * @swagger
+ * /category/get-categories:
+ *   get:
+ *     summary: Get categories
+ *     description: Get all category data
+ *     tags: [Category]
+ *     responses:
+ *       200:
+ *         description: success
+ *       500:
+ *         description: server error
+ */
 
 router.get("/get-categories", async (req, res) => {
   try {
@@ -124,6 +172,33 @@ router.get("/get-categories", async (req, res) => {
     res.status(500).json({ status: false, message: error.message });
   }
 });
+
+/**
+ * @swagger
+ * /category/delete/{id}:
+ *   delete:
+ *     summary: Delete Category
+ *     description: Delete a category by id (admin only)
+ *     tags: [Category]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The category ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: delete success
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Admin only)
+ *       500:
+ *         description: Server error
+ */
 
 router.delete("/delete/:id", authorize("admin"), async (req, res) => {
   try {

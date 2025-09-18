@@ -6,6 +6,36 @@ import { authorize } from "../middleware/Authorize.js";
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /authentication/signup:
+ *   post:
+ *     summary: Sign Up
+ *     description:
+ *       Required for all field
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: success sign up
+ *       500:
+ *         description: Internal server error
+ */
+
 router.post("/signup", async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
@@ -41,6 +71,32 @@ router.post("/signup", async (req, res) => {
     });
   }
 });
+
+/**
+ * @swagger
+ * /authentication/signin:
+ *   post:
+ *     summary: Sign In
+ *     description:
+ *       Required for `email` and `password`
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: success sign in
+ *       500:
+ *         description: Internal server error
+ */
 router.post("/signin", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -83,6 +139,7 @@ router.post("/signin", async (req, res) => {
         return res.status(200).json({
           status: true,
           message: "success sign in",
+          token: token,
           data: user,
         });
       }
@@ -100,6 +157,23 @@ router.post("/signin", async (req, res) => {
     });
   }
 });
+
+/**
+ * @swagger
+ * /authentication/load-user:
+ *   get:
+ *     summary: Get user data
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: success load user
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 
 router.get("/load-user", authorize("user", "admin"), async (req, res) => {
   try {
@@ -134,6 +208,26 @@ router.get("/load-user", authorize("user", "admin"), async (req, res) => {
     });
   }
 });
+/**
+ * @swagger
+ * /authentication/get-users:
+ *   get:
+ *     summary: Get all users
+ *     description:
+ *       Admin only
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: success get all users
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Admin only)
+ *       500:
+ *         description: Server error
+ */
 
 router.get("/get-users", authorize("admin"), async (req, res) => {
   try {
@@ -191,6 +285,33 @@ router.get("/get-users", authorize("admin"), async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /authentication/delete-user/{id}:
+ *   delete:
+ *     summary: Delete a user
+ *     description: Delete a user by ID. Only accessible by admins.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The user ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Admin only)
+ *       500:
+ *         description: Server error
+ */
+
 router.delete("/delete-user/:id", authorize("admin"), async (req, res) => {
   try {
     const { id } = req.params;
@@ -207,6 +328,26 @@ router.delete("/delete-user/:id", authorize("admin"), async (req, res) => {
     });
   }
 });
+
+/**
+ * @swagger
+ * /authentication/update-profile:
+ *   put:
+ *     summary: Update user profile
+ *     description: Update name, email, phone and password
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Data updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found!
+ *       500:
+ *         description: Server error
+ */
 
 router.put("/update-profile", authorize("user"), async (req, res) => {
   try {
@@ -256,6 +397,21 @@ router.put("/update-profile", authorize("user"), async (req, res) => {
     });
   }
 });
+/**
+ * @swagger
+ * /authentication/logout:
+ *   post:
+ *     summary: Logout user
+ *     description: Clears the authentication token cookie and logs the user out.
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *       500:
+ *         description: Server error
+ */
 
 router.post("/logout", (req, res) => {
   try {

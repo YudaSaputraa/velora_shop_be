@@ -20,6 +20,8 @@
     "nanoid": "^5.1.5",
     "nodemon": "^3.1.9",
     "pg": "^8.16.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0"
   },
   "type": "module"
